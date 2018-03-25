@@ -1,0 +1,86 @@
+﻿Version=2.2
+NumberOfModules=0
+Build1=Default,B4RDev
+NumberOfFiles=0
+NumberOfLibraries=3
+Library1=rcore
+Library2=resp8266wifi
+Library3=rrandomaccessfile
+@EndOfDesignText@
+' Web-enabled home-security camera using Module Camera Shield (2 Megapixels Lens for Arduino)
+
+Sub Process_Globals
+	'These global variables will be declared once when the application starts.
+	'Public variables can be accessed from all modules.
+	Public Serial1 As Serial
+	Private WiFi As ESP8266WiFi
+	Private server As WiFiServerSocket
+	Private aSync As AsyncStreams
+	Private bc As ByteConverter
+End Sub
+
+Private Sub AppStart
+	Serial1.Initialize(115200)
+	Log("AppStart")
+	
+	' Fixed IP
+	Dim b() As Byte = Array As Byte(192, 168, 0, 88)
+	RunNative("SetIP", b)
+	If WiFi.Connect2("Rise Above This Home","SteelReserve") Then
+		Log("Access point Available")
+		Log("IP = ", WiFi.LocalIp)
+		RunNative("GetMacAddress", Null)
+
+		server.Initialize(80, "server_NewConnection")
+		server.Listen
+	End If
+End Sub
+
+Sub server_NewConnection (NewSocket As WiFiSocket)
+	Log("connected")
+	aSync.Initialize(NewSocket.Stream, "aSync_NewData", "aSync_Error")
+End Sub
+
+Sub aSync_NewData (Buffer() As Byte)
+	Log(Buffer)
+	If bc.IndexOf(Buffer, "GET") <> -1 Then
+		If bc.IndexOf(Buffer, "GET /login") <> -1 Then
+			aSync.Write("HTTP/1.1 200 OK").write(CRLF)
+			aSync.Write("Content-Type: text/html").Write(CRLF).Write(CRLF)
+			aSync.Write("<b>Hello World</b><br/><a href=""https://www.b4x.com"">B4X</a>")
+			Log("login - ", Buffer.Length)
+		Else
+			aSync.Write("HTTP/1.1 404").Write(CRLF)
+			aSync.Write("Content-Type: text/html").Write(CRLF).Write(CRLF)
+			aSync.Write("What's up world?").Write(CRLF)
+		End If
+		CallSubPlus("CloseConnection", 100, 0)
+	End If
+End Sub
+
+Sub CloseConnection(u As Byte)
+	Log("writing")
+	server.Socket.Close
+End Sub
+
+Sub aSync_Error
+	Log("Error")
+	server.Listen
+End Sub
+
+
+#if C
+    void SetIP(B4R::Object* o) {
+        B4R::Array* b = (B4R::Array*)B4R::Object::toPointer(o);
+        IPAddress ip(ByteFromArray(b, 0),ByteFromArray(b, 1) , ByteFromArray(b, 2), ByteFromArray(b, 3));
+        IPAddress gateway(192, 168, 0, 1);
+        IPAddress subnet(255, 255, 255, 0);
+        WiFi.config(ip, gateway, subnet);
+    }
+	
+    void GetMacAddress(B4R::Object* o) {
+		Serial.println();
+		Serial.print("MAC = ");
+		Serial.println(WiFi.macAddress());
+    }	
+#end if
