@@ -53,6 +53,7 @@ Sub aSync_NewData (Buffer() As Byte)
 			aSync.Write("HTTP/1.1 404").Write(CRLF)
 			aSync.Write("Content-Type: text/html").Write(CRLF).Write(CRLF)
 			aSync.Write("What's up world?").Write(CRLF)
+			aSync.Write("<br><br>-- Developed by Cloyd").Write(CRLF)
 		End If
 		CallSubPlus("CloseConnection", 100, 0)
 	End If
